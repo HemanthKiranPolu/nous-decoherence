@@ -229,6 +229,29 @@ python -m nous.replicate_zhao_conflict_probe        # 2.5, trained-probe reconci
 python -m nous.verifier_scaled_realistic            # 2.6, 120-fact realistic-document sweep
 ```
 
+## 6. What would make this result matter again
+
+Section 2.6 is not a call for more relations or more seeds at the same design — it is a
+falsification of the practical version of the claim. Restoring it requires one of two
+things, not incremental replication of what is already here:
+
+1. **A signal that survives realistic documents.** Not this cosine-similarity-on-raw-
+   activations measurement at a fixed layer, evaluated on documents with other true
+   content around the target fact — something that isolates the target fact's
+   contribution from the filler's, rather than comparing whole-document hidden states
+   where filler content dominates by volume.
+2. **A mechanistic account of the collapse that generalizes.** "The identical filler
+   facts probably dominate the representation" (Section 2.6) is a plausible guess, stated
+   as one, not tested. A real account would predict *in advance* — from document length,
+   filler/target ratio, or something else measurable — which relations keep a signal and
+   which invert, rather than describing the six numbers already observed after the fact.
+
+Neither is a small follow-up experiment. Absent one of these, the honest summary of this
+note is: a real, replicated, mechanistically-unexplained artifact of single-sentence
+framing, refuted twice on its proposed mechanism, and refuted once on its practical
+applicability. That is a legitimate negative result. It is not, on the evidence collected
+here, a verifier.
+
 ## References
 
 - Zhao et al., *Analysing the Residual Stream of Language Models Under Knowledge
