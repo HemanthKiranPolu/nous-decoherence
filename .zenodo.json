@@ -1,0 +1,21 @@
+{
+  "title": "Late-Layer Geometric Resistance Under In-Context Knowledge Conflict",
+  "description": "A workshop-note-scope interpretability finding: late-layer decoherence under in-context knowledge conflict is real and replicates across three model architectures on isolated single-sentence contradictions, but mostly does not survive realistic multi-sentence documents (5 of 6 relations reverse sign). Two proposed mechanisms (per-fact memorization rigidity; active-lie commitment) are tested directly and refuted. Includes full reproduce scripts.",
+  "creators": [
+    {
+      "name": "Polu, Hemanth Kiran",
+      "affiliation": ""
+    }
+  ],
+  "keywords": [
+    "interpretability",
+    "knowledge conflicts",
+    "large language models",
+    "residual stream",
+    "mechanistic interpretability",
+    "retrieval-augmented generation"
+  ],
+  "license": "MIT",
+  "upload_type": "publication",
+  "publication_type": "workingpaper"
+}
