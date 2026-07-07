@@ -1,0 +1,340 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\title{Late-Layer Geometric Resistance Under In-Context Knowledge Conflict}
+\author{Hemanth Kiran Polu}
+\date{July 6, 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\textbf{Status:} workshop-note draft, small/moderate-$n$ exploratory
+interpretability result. \textbf{Scope:} a narrow, falsification-heavy finding
+whose central result (\S\ref{sec:realistic}) is a negative one --- see \S\ref{sec:limitations}
+before citing.
+
+\begin{abstract}
+When a document in context contradicts a language model's parametric knowledge,
+does that conflict leave a measurable trace in the residual stream? On isolated,
+single-sentence synthetic contradictions, yes, robustly: across three
+instruction-tuned models spanning three architecture families (Qwen3-4B-Instruct,
+Phi-3-mini, Llama-3.2-3B-Instruct) and three relation types (country$\to$capital,
+company$\to$founder, book$\to$author), a late-layer ($\sim$82--83\% depth) hidden
+state for a same-entity contradiction is geometrically further from a clean
+baseline than switching to a different entity entirely is (9/9 model$\times$relation
+combinations agree on direction), while a mid-layer ($\sim$32--34\% depth) check
+shows no such gap. We then falsify our own first two explanations for \emph{why}
+the effect varies in size --- first that it tracks per-fact parametric
+memorization strength (rigidity hypothesis, refuted: Spearman $\rho=0.006$,
+$n=45$), then that it tracks the model successfully outputting the false claim
+(active-lie hypothesis, refuted: resisting the contradiction costs \emph{more}
+geometric disruption than complying with it, $n=73$ vs.\ $62$). Finally ---
+and this is the central limitation of the whole result --- the effect is
+largely an artifact of the single-sentence framing: scaled to 120 facts across
+6 relations with realistic multi-sentence documents (the target fact embedded
+among other true facts, not isolated), the late-layer gap survives for only 1
+of 6 relations and \emph{reverses sign} for the other 5. The mid-layer null is
+separately reconciled with prior work: a \emph{trained} probe recovers a real
+but modest signal (AUROC 0.642) where our untrained geometric check found none,
+consistent with --- but quantitatively short of --- Zhao et al.\ (2024)'s
+reported $\sim$90\% mid-layer probe accuracy.
+\end{abstract}
+
+\section{Setup}
+
+Three relations, 15 facts each (45 total), each posed as \texttt{Document:
+\{fact\}. Q: \{question\} A:} with either the true tail (congruent) or another
+fact's real tail substituted (contradictory, a plausible hard negative rather
+than gibberish). Models confirmed to actually follow in-context overrides
+before use (checked directly, not assumed, and at the \emph{aggregate} level,
+not on one example --- a single Llama-3 test case looked like a premise
+failure and was not representative, see \S\ref{sec:decoherence}): GPT-2-base
+and TinyLlama-1.1B-Chat both failed this premise outright at scale and were
+excluded; Qwen3-4B-Instruct, Phi-3-mini-4k-instruct, and Llama-3.2-3B-Instruct
+all pass, with real (if uneven) override rates on every relation. Llama-3
+required a license acceptance and access token, obtained partway through this
+work.
+
+\section{Results}
+
+\subsection{Real-LLM parametric recall (baseline sanity check)}
+
+A linear probe on GPT-2 hidden states, trained on 20 countries' true/false
+capital sentences, reaches AUROC 0.980 on 10 held-out countries --- confirms
+parametric facts are linearly decodable and generalize to unseen entities,
+before testing anything harder.
+
+\subsection{Late-layer decoherence under in-context contradiction}
+\label{sec:decoherence}
+
+Cosine similarity between congruent and contradictory hidden states, same
+entity, vs.\ cosine similarity between two different entities' congruent
+hidden states (the ``does a lie perturb the representation more than an
+ordinary topic change'' test), Qwen3-4B, layers 12/36 and 30/36:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Layer & Same-entity (congruent vs.\ contradictory) & Cross-entity (congruent vs.\ congruent) \\
+\midrule
+12 & 0.9974 & 0.9969 \\
+30 & \textbf{0.9277} & \textbf{0.9829} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Replicated across 3 relations $\times$ 3 seeds (mid-layer gap $\approx 0$ on
+all 9 runs, late-layer gap positive on all 9), and on two further,
+architecturally different models: Phi-3-mini (layers 11/32 and 27/32) and
+Llama-3.2-3B-Instruct (layers 9/28 and 23/28) --- same qualitative pattern on
+both, 9/9 relation-model combinations now agreeing on direction across all
+three model families:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Model & Relation & Override \% & Mid-layer gap & Late-layer gap \\
+\midrule
+Qwen3-4B & capital\_of & 71\% & $-0.0006$ & \textbf{0.0525} \\
+Qwen3-4B & founded\_by & 98\% & $-0.0035$ & \textbf{0.0156} \\
+Qwen3-4B & written\_by & 84\% & $-0.0048$ & \textbf{0.0225} \\
+Phi-3-mini & capital\_of & 22\% & $-0.0021$ & \textbf{0.0214} \\
+Phi-3-mini & founded\_by & 51\% & $-0.0067$ & \textbf{0.0165} \\
+Phi-3-mini & written\_by & 64\% & $-0.0091$ & \textbf{0.0430} \\
+Llama-3.2-3B & capital\_of & 89\% & 0.0032 & \textbf{0.0612} \\
+Llama-3.2-3B & founded\_by & 16\% & $-0.0074$ & \textbf{0.0816} \\
+Llama-3.2-3B & written\_by & 16\% & $-0.0156$ & \textbf{0.1681} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Relation-level magnitude is \emph{not} stable across models: Qwen's largest
+effect is \texttt{capital\_of} (0.053), Phi-3's largest is \texttt{written\_by}
+(0.043), Llama-3's largest is also \texttt{written\_by} but at 0.168 ---
+nearly 3$\times$ Phi-3's --- magnitude depends on the model, not solely the
+relation, and Llama-3's effect sizes are uniformly the largest of the three
+models on this single-sentence framing.
+
+\subsection{Rigidity hypothesis --- refuted at fact-level granularity}
+
+Proposed mechanism: facts held with a ``deeper parametric attractor'' should
+decohere more under override. Tested directly: per-fact teacher-forced
+confidence in the true tail (bare prompt, no document) against per-fact
+layer-30 decoherence, $n=45$ facts pooled across all 3 relations. Spearman
+$\rho = 0.006$ --- no relationship. Confidence vs.\ override-resistance:
+$\rho = -0.225$, correct direction but below the $\sim$0.29 threshold $n=45$
+needs for significance. The relation-level magnitude pattern in
+\S\ref{sec:decoherence} is real but not explained by per-fact memorization
+strength.
+
+\subsection{Active-lie hypothesis --- refuted with real statistical power}
+
+Proposed alternative: decoherence tracks the model successfully
+\emph{committing} to the false answer, not merely processing the
+contradiction. Tested on Phi-3 (lower compliance rate gives a naturally large
+stubborn/compliant split: $n=73$ stubborn, $n=62$ compliant, vs.\ only $n=5$
+stubborn on Qwen):
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Layer & Stubborn (resisted) & Compliant (followed) & Baseline (no conflict) \\
+\midrule
+11 & 0.0036 & 0.0036 & 0.0095 \\
+27 & \textbf{0.1018} & \textbf{0.0747} & \textbf{0.0623} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Stubborn $>$ compliant $>$ baseline at the late layer --- the opposite of what
+an active-lie mechanism predicts. Resisting an explicit contextual instruction
+to preserve a parametric prior costs more geometric disruption than complying
+with it. At the mid layer, both groups score \emph{below} the cross-entity
+baseline, which is a lexical artifact (swapping the whole subject perturbs
+shallow-layer tokens more than swapping only the claimed answer for the same
+subject) rather than evidence about conflict processing.
+
+\subsection{Reconciling the mid-layer null with Zhao et al.\ (2024)}
+
+Zhao et al.\ (arXiv:2410.16090) report $\sim$90\% accuracy from a
+\emph{trained} linear probe detecting conflict-presence at intermediate
+layers of Llama3-8B --- in apparent tension with our untrained mid-layer null
+(\S\ref{sec:decoherence}). Replicating their actual method (trained logistic
+regression, congruent$=0$/contradictory$=1$, held out on unseen entities) on
+our 45-fact Qwen set: AUROC 0.642 at layer 12, 1.000 at layer 30. A trained
+probe \emph{does} recover a real signal our untrained geometric check missed
+--- the discrepancy is substantially a method difference --- but 0.642 falls
+well short of their $\sim$90\%, plausibly due to this replication's much
+smaller dataset and a single train/held-out split with no cross-validation,
+not a clean quantitative match.
+
+\subsection{Realistic multi-sentence documents --- the effect mostly does not survive}
+\label{sec:realistic}
+
+Every result above uses an isolated, single-sentence document:
+\texttt{Document: France is a country whose capital is Munich.} Real RAG
+documents are longer and contain other true content alongside the fact being
+queried. Scaled to 120 facts across 6 relations (\texttt{capital\_of},
+\texttt{founded\_by}, \texttt{written\_by}, \texttt{painted\_by},
+\texttt{directed\_by}, \texttt{composed\_by}, 20 facts each) with documents
+built as an opener + 2 \emph{other true facts from the same relation} + the
+target sentence + a closer (congruent and contradictory versions share the
+identical filler facts, differing only in the target sentence's tail ---
+verified by construction, and a first version of this experiment had a bug
+letting filler facts differ between the two versions; fixed and rerun before
+trusting the result below), Qwen3-4B-Instruct:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Relation & Override \% & Mid-layer gap & Late-layer gap \\
+\midrule
+capital\_of & 35\% & $-0.0011$ & \textbf{0.0048} \\
+founded\_by & 58\% & $-0.0032$ & \textbf{$-0.0105$} \\
+written\_by & 88\% & $-0.0040$ & \textbf{$-0.0177$} \\
+painted\_by & 92\% & $-0.0039$ & \textbf{$-0.0179$} \\
+directed\_by & 85\% & $-0.0033$ & \textbf{$-0.0200$} \\
+composed\_by & 95\% & $-0.0050$ & \textbf{$-0.0171$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The late-layer gap survives for only 1 of 6 relations (\texttt{capital\_of},
+and even there it shrinks roughly 10$\times$ from the single-sentence
+version's 0.0525 to 0.0048) and \emph{reverses sign} for the other 5. This is
+the central limitation of the whole result: the effect documented in
+\S\S\ref{sec:decoherence}--2.4 is largely specific to isolated single-sentence
+contradictions and does not straightforwardly generalize to documents
+containing other true content alongside the target fact --- the realistic
+case a deployed RAG verifier would actually need to handle. A plausible
+mechanism, not yet tested directly: once a document contains multiple true
+facts alongside one manipulated one, most of the document's content is
+identical between the congruent and contradictory versions, which may
+dominate the late-layer representation and wash out or invert the effect of
+the one changed sentence relative to switching to a document about a
+completely different entity.
+
+\section{What is and isn't shown}
+
+\begin{itemize}
+\item On isolated single-sentence contradictions, a real, cross-model (3
+  architecture families), cross-relation late-layer geometric signal exists
+  and is not explained by per-fact memorization strength or by whether the
+  model ultimately complies.
+\item \textbf{That signal mostly does not survive realistic multi-sentence
+  documents} (\S\ref{sec:realistic}) --- 1 of 6 relations keeps a (much
+  smaller) positive gap, 5 reverse sign. This is the headline limitation, not
+  a footnote: whatever this signal is, it is substantially a property of
+  isolated single-fact framing, not yet a property of realistic documents.
+\item The magnitude of the single-sentence effect is model- and
+  relation-dependent by a factor of up to $\sim$3$\times$; no mechanism
+  tested so far explains that variation, and it is now moot for 5 of 6
+  relations once documents are realistic anyway.
+\item The practical framing that survives on single-sentence documents is
+  \textbf{not} ``lie detector'' --- it is closer to a \textbf{resistance/
+  friction detector}: it appears to fire more when a model fights its own
+  parametric prior than when it quietly updates to match new context.
+  Whether \emph{any} framing survives on realistic documents is now the open
+  question.
+\item Not shown: what explains the magnitude variation on single-sentence
+  documents; what explains the sign reversal on realistic documents; whether
+  either transfers past 6 relation templates and 3 model families; a
+  deployed detection threshold (none is proposed here, and
+  \S\ref{sec:realistic} makes one look premature).
+\end{itemize}
+
+\section{Honest scope \& limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+\item \textbf{The realistic-document result (\S\ref{sec:realistic}) is the
+  main limitation, not an afterthought.} The signal this note is built
+  around is largely specific to isolated single-sentence contradictions.
+  Anyone citing the \S\ref{sec:decoherence}--2.4 numbers should cite
+  \S\ref{sec:realistic} in the same breath.
+\item \textbf{Moderate $n$.} 120 facts / 6 relations for the
+  realistic-document result; 45 facts / 3 relations for the single-sentence
+  cross-model result. Real effects at this scale, not yet large-sample
+  claims.
+\item \textbf{Two models failed the override premise entirely.} GPT-2-base
+  and TinyLlama-1.1B-Chat do not reliably follow in-context overrides at all
+  and were excluded rather than forced; worth noting as a capability floor
+  for any downstream use of this signal. A single worked example is not
+  sufficient evidence a model passes this premise either way --- one
+  Llama-3 example looked like a failure and was not representative of its
+  45-fact aggregate rate (\S\ref{sec:decoherence}).
+\item \textbf{No deployed detector.} This note establishes a measurable
+  phenomenon (fragile even on the axis it was found on), not a calibrated,
+  cross-domain threshold ready to gate real generations.
+\item \textbf{Prior art.} Zhao et al.\ (2024) already show conflict-presence
+  is probeable at intermediate layers; this note's distinct contributions
+  are the late-layer resistance-vs-compliance split (\S2.4), the negative
+  result on per-fact rigidity (\S2.3), and the negative result on
+  realistic-document generalization (\S\ref{sec:realistic}) --- not the base
+  claim that conflict leaves a residual-stream trace.
+\end{itemize}
+
+\section{Reproduce}
+
+\begin{verbatim}
+git clone https://github.com/HemanthKiranPolu/nous-decoherence
+cd nous-decoherence
+pip install -r requirements.txt
+python -m nous.verifier_real_llm_test              # 2.1
+python -m nous.verifier_in_context_conflict         # 2.2, Qwen
+python -m nous.verifier_multi_relation_robustness   # 2.2, 3-rel x 3-seed Qwen
+python -m nous.rigidity_hypothesis_test             # 2.3
+python -m nous.verifier_cross_model_phi3            # 2.2, Phi-3
+python -m nous.verifier_cross_model_llama3          # 2.2, Llama-3 (HF_TOKEN)
+python -m nous.verifier_compliance_split_phi3       # 2.4
+python -m nous.replicate_zhao_conflict_probe        # 2.5
+python -m nous.verifier_scaled_realistic            # 2.6, 120-fact realistic docs
+\end{verbatim}
+
+\section{What would make this result matter again}
+
+Section \ref{sec:realistic} is not a call for more relations or more seeds at
+the same design --- it is a falsification of the practical version of the
+claim. Restoring it requires one of two things, not incremental replication
+of what is already here:
+
+\begin{enumerate}
+\item \textbf{A signal that survives realistic documents.} Not this
+  cosine-similarity-on-raw-activations measurement at a fixed layer,
+  evaluated on documents with other true content around the target fact ---
+  something that isolates the target fact's contribution from the filler's,
+  rather than comparing whole-document hidden states where filler content
+  dominates by volume.
+\item \textbf{A mechanistic account of the collapse that generalizes.} ``The
+  identical filler facts probably dominate the representation''
+  (\S\ref{sec:realistic}) is a plausible guess, stated as one, not tested. A
+  real account would predict \emph{in advance} --- from document length,
+  filler/target ratio, or something else measurable --- which relations keep
+  a signal and which invert, rather than describing the six numbers already
+  observed after the fact.
+\end{enumerate}
+
+Neither is a small follow-up experiment. Absent one of these, the honest
+summary of this note is: a real, replicated, mechanistically-unexplained
+artifact of single-sentence framing, refuted twice on its proposed mechanism,
+and refuted once on its practical applicability. That is a legitimate
+negative result. It is not, on the evidence collected here, a verifier.
+
+\begin{thebibliography}{9}
+\bibitem{zhao2024} Zhao et al., \emph{Analysing the Residual Stream of
+  Language Models Under Knowledge Conflicts}, arXiv:2410.16090 (2024).
+\bibitem{shift2026} Li et al., \emph{SHIFT: Gate-Modulated Activation
+  Steering for Knowledge Conflict Mitigation in Retrieval-Augmented
+  Generation}, arXiv:2606.27786 (2026).
+\end{thebibliography}
+
+\end{document}

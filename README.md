@@ -21,10 +21,24 @@ documents, the effect survives for only 1 of 6 relations and reverses sign for t
 
 ## Build the PDF
 
+`paper.tex` is the arXiv-submission source (standard `article` class, `\S`-numbered
+sections, `booktabs` tables) — `paper.md` is the same content in Markdown, kept for easy
+reading on GitHub. Build either:
+
 ```bash
-pip install -r requirements.txt   # only needed to RUN the experiments, not to build the PDF
-pandoc paper.md -o paper.pdf --pdf-engine=tectonic
+tectonic paper.tex          # arXiv-format PDF, from paper.tex directly
+# or
+pandoc paper.md -o paper.pdf --pdf-engine=tectonic   # from the Markdown source
 ```
+
+## Submit to arXiv
+
+`paper.tex` compiles standalone with no external `.bib`/`.sty` files — arXiv's TeX Live
+build should accept it as-is. Suggested categories: `cs.CL` (primary), `cs.LG`
+(secondary). Note the abstract's own conclusion before submitting anywhere: the central
+result (\S2.6 / Section 6) is a negative one — this reads as an honest interpretability
+note, not a positive capability claim, and framing it as the latter in a submission
+would misstate what's actually shown.
 
 ## Reproduce the experiments
 
