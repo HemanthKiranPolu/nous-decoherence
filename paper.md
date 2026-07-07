@@ -14,17 +14,23 @@ fontsize: 11pt
 ## Abstract
 
 When a document in context contradicts a language model's parametric knowledge, does
-that conflict leave a measurable trace in the residual stream? We test this on two
-instruction-tuned models (Qwen3-4B-Instruct, Phi-3-mini) across three relation types
-(country→capital, company→founder, book→author) and find a real, replicated signal:
-at a late layer (~83% depth), the hidden state for a same-entity contradiction is
-geometrically further from a clean baseline than switching to a different entity
-entirely is; at a mid layer (~33% depth), there is no such gap. We then falsify our
-own first two explanations for *why* the effect varies in size — first that it tracks
-per-fact parametric memorization strength (rigidity hypothesis, refuted: Spearman
-rho=0.006, n=45), then that it tracks the model successfully outputting the false claim
-(active-lie hypothesis, refuted: resisting the contradiction costs *more* geometric
-disruption than complying with it, n=73 vs 62). The mid-layer null is itself
+that conflict leave a measurable trace in the residual stream? On isolated,
+single-sentence synthetic contradictions, yes, robustly: across three instruction-tuned
+models spanning three architecture families (Qwen3-4B-Instruct, Phi-3-mini,
+Llama-3.2-3B-Instruct) and three relation types (country→capital, company→founder,
+book→author), a late-layer (~82–83% depth) hidden state for a same-entity contradiction
+is geometrically further from a clean baseline than switching to a different entity
+entirely is (9/9 model×relation combinations agree on direction), while a mid-layer
+(~32–34% depth) check shows no such gap. We then falsify our own first two explanations
+for *why* the effect varies in size — first that it tracks per-fact parametric
+memorization strength (rigidity hypothesis, refuted: Spearman rho=0.006, n=45), then that
+it tracks the model successfully outputting the false claim (active-lie hypothesis,
+refuted: resisting the contradiction costs *more* geometric disruption than complying
+with it, n=73 vs 62). Finally — and this is the central limitation of the whole
+result — the effect is largely an artifact of the single-sentence framing: scaled to 120
+facts across 6 relations with realistic multi-sentence documents (the target fact
+embedded among other true facts, not isolated), the late-layer gap survives for only 1 of
+6 relations and *reverses sign* for the other 5. The mid-layer null is separately
 reconciled with prior work: a *trained* probe recovers a real but modest signal
 (AUROC 0.642) where our untrained geometric check found none, consistent with — but
 quantitatively short of — Zhao et al. (2024)'s reported ~90% mid-layer probe accuracy.
@@ -33,11 +39,14 @@ quantitatively short of — Zhao et al. (2024)'s reported ~90% mid-layer probe a
 
 Three relations, 15 facts each (45 total), each posed as `Document: {fact}. Q: {question}
 A:` with either the true tail (congruent) or another fact's real tail substituted
-(contradictory, a plausible hard negative rather than gibberish). Two models confirmed
-to actually follow in-context overrides before use (checked directly, not assumed):
-GPT-2-base and TinyLlama-1.1B-Chat both failed this premise outright and were excluded;
-Qwen3-4B-Instruct and Phi-3-mini-4k-instruct both pass. Llama-3 itself is gated on
-Hugging Face (manual approval required) and was not accessible in this environment.
+(contradictory, a plausible hard negative rather than gibberish). Models confirmed to
+actually follow in-context overrides before use (checked directly, not assumed, and at
+the *aggregate* level, not on one example — a single Llama-3 test case looked like a
+premise failure and was not representative, see Section 2.2): GPT-2-base and
+TinyLlama-1.1B-Chat both failed this premise outright at scale and were excluded;
+Qwen3-4B-Instruct, Phi-3-mini-4k-instruct, and Llama-3.2-3B-Instruct all pass, with
+real (if uneven) override rates on every relation. Llama-3 required a license acceptance
+and access token, obtained partway through this work.
 
 ## 2. Results
 
@@ -60,11 +69,28 @@ layers 12/36 and 30/36:
 | 30 | **0.9277** | **0.9829** |
 
 Replicated across 3 relations × 3 seeds (mid-layer gap ~ 0 on all 9 runs, late-layer gap
-positive on all 9), and on a second, architecturally different model (Phi-3-mini, layers
-11/32 and 27/32; same qualitative pattern, 6/6 relation-model combinations agreeing on
-direction). Relation-level magnitude is *not* stable across models: Qwen's largest effect
-is `capital_of` (0.053), Phi-3's largest is `written_by` (0.043) — magnitude depends on
-the model, not solely the relation.
+positive on all 9), and on two further, architecturally different models: Phi-3-mini
+(layers 11/32 and 27/32) and Llama-3.2-3B-Instruct (layers 9/28 and 23/28) — same
+qualitative pattern on both, 9/9 relation-model combinations now agreeing on direction
+across all three model families:
+
+| model | relation | override % | mid-layer gap | late-layer gap |
+|---|---|---|---|---|
+| Qwen3-4B | capital_of | 71% | −0.0006 | **0.0525** |
+| Qwen3-4B | founded_by | 98% | −0.0035 | **0.0156** |
+| Qwen3-4B | written_by | 84% | −0.0048 | **0.0225** |
+| Phi-3-mini | capital_of | 22% | −0.0021 | **0.0214** |
+| Phi-3-mini | founded_by | 51% | −0.0067 | **0.0165** |
+| Phi-3-mini | written_by | 64% | −0.0091 | **0.0430** |
+| Llama-3.2-3B | capital_of | 89% | 0.0032 | **0.0612** |
+| Llama-3.2-3B | founded_by | 16% | −0.0074 | **0.0816** |
+| Llama-3.2-3B | written_by | 16% | −0.0156 | **0.1681** |
+
+Relation-level magnitude is *not* stable across models: Qwen's largest effect is
+`capital_of` (0.053), Phi-3's largest is `written_by` (0.043), Llama-3's largest is also
+`written_by` but at 0.168 — nearly 3× Phi-3's — magnitude depends on the model, not
+solely the relation, and Llama-3's effect sizes are uniformly the largest of the three
+models on this single-sentence framing.
 
 ### 2.3 Rigidity hypothesis — refuted at fact-level granularity
 
@@ -107,37 +133,84 @@ substantially a method difference — but 0.642 falls well short of their ~90%, 
 due to this replication's much smaller dataset and a single train/held-out split with no
 cross-validation, not a clean quantitative match.
 
+### 2.6 Realistic multi-sentence documents — the effect mostly does not survive
+
+Every result above uses an isolated, single-sentence document: `Document: France is a
+country whose capital is Munich.` Real RAG documents are longer and contain other true
+content alongside the fact being queried. Scaled to 120 facts across 6 relations
+(`capital_of`, `founded_by`, `written_by`, `painted_by`, `directed_by`, `composed_by`,
+20 facts each) with documents built as an opener + 2 *other true facts from the same
+relation* + the target sentence + a closer (congruent and contradictory versions share
+the identical filler facts, differing only in the target sentence's tail — verified by
+construction, and a first version of this experiment had a bug letting filler facts
+differ between the two versions; fixed and rerun before trusting the result below),
+Qwen3-4B-Instruct:
+
+| relation | override % | mid-layer gap | late-layer gap |
+|---|---|---|---|
+| capital_of | 35% | −0.0011 | **0.0048** |
+| founded_by | 58% | −0.0032 | **−0.0105** |
+| written_by | 88% | −0.0040 | **−0.0177** |
+| painted_by | 92% | −0.0039 | **−0.0179** |
+| directed_by | 85% | −0.0033 | **−0.0200** |
+| composed_by | 95% | −0.0050 | **−0.0171** |
+
+The late-layer gap survives for only 1 of 6 relations (`capital_of`, and even there it
+shrinks roughly 10× from the single-sentence version's 0.0525 to 0.0048) and *reverses
+sign* for the other 5. This is the central limitation of the whole result: the effect
+documented in Sections 2.2–2.4 is largely specific to isolated single-sentence
+contradictions and does not straightforwardly generalize to documents containing other
+true content alongside the target fact — the realistic case a deployed RAG verifier
+would actually need to handle. A plausible mechanism, not yet tested directly: once a
+document contains multiple true facts alongside one manipulated one, most of the
+document's content is identical between the congruent and contradictory versions, which
+may dominate the late-layer representation and wash out or invert the effect of the one
+changed sentence relative to switching to a document about a completely different entity.
+
 ## 3. What is and isn't shown
 
-- A real, cross-model, cross-relation late-layer geometric signal under in-context
-  contradiction exists and is not explained by per-fact memorization strength or by
-  whether the model ultimately complies.
-- The magnitude of the effect is model- and relation-dependent by a factor of 2–3×; no
-  mechanism tested so far explains that variation.
-- The practical framing that survives is **not** "lie detector" — it is closer to a
-  **resistance/friction detector**: it appears to fire more when a model fights its own
-  parametric prior than when it quietly updates to match new context.
-- Not shown: what *does* explain the magnitude variation (relation type? entity type?
-  something else); whether this transfers past 3 relation templates and 2 model families;
-  whether it survives natural (non-templated) documents instead of single-sentence
-  synthetic contradictions; a deployed detection threshold (none is proposed here).
+- On isolated single-sentence contradictions, a real, cross-model (3 architecture
+  families), cross-relation late-layer geometric signal exists and is not explained by
+  per-fact memorization strength or by whether the model ultimately complies.
+- **That signal mostly does not survive realistic multi-sentence documents** (Section 2.6)
+  — 1 of 6 relations keeps a (much smaller) positive gap, 5 reverse sign. This is the
+  headline limitation, not a footnote: whatever this signal is, it is substantially a
+  property of isolated single-fact framing, not yet a property of realistic documents.
+- The magnitude of the single-sentence effect is model- and relation-dependent by a
+  factor of up to ~3×; no mechanism tested so far explains that variation, and it is now
+  moot for 5 of 6 relations once documents are realistic anyway.
+- The practical framing that survives on single-sentence documents is **not** "lie
+  detector" — it is closer to a **resistance/friction detector**: it appears to fire more
+  when a model fights its own parametric prior than when it quietly updates to match new
+  context. Whether *any* framing survives on realistic documents is now the open question.
+- Not shown: what explains the magnitude variation on single-sentence documents; what
+  explains the sign reversal on realistic documents; whether either transfers past 6
+  relation templates and 3 model families; a deployed detection threshold (none is
+  proposed here, and Section 2.6 makes one look premature).
 
 ## 4. Honest scope & limitations
 
-- **Small n throughout.** 45 facts, 3 relations, 2–3 seeds per relation. Real effects, not
+- **The realistic-document result (Section 2.6) is the main limitation, not an
+  afterthought.** The signal this note is built around is largely specific to isolated
+  single-sentence contradictions. Anyone citing the Section 2.2–2.4 numbers should cite
+  Section 2.6 in the same breath.
+- **Moderate n.** 120 facts / 6 relations for the realistic-document result; 45 facts / 3
+  relations for the single-sentence cross-model result. Real effects at this scale, not
   yet large-sample claims.
-- **Two working models, two failed premises.** GPT-2-base and TinyLlama-1.1B-Chat do not
-  reliably follow in-context overrides at all and were excluded rather than forced; this
-  itself is worth noting as a capability floor for any downstream use of this signal.
-- **Llama-3 untested.** Gated, no license acceptance available in this environment.
-- **Synthetic, single-sentence contradictions only.** Real RAG documents are longer, noisier,
-  and multi-fact; this has not been tested on anything but templated single-fact conflicts.
-- **No deployed detector.** This note establishes a measurable phenomenon, not a calibrated,
-  cross-domain threshold ready to gate real generations.
+- **Two models failed the override premise entirely.** GPT-2-base and TinyLlama-1.1B-Chat
+  do not reliably follow in-context overrides at all and were excluded rather than forced;
+  worth noting as a capability floor for any downstream use of this signal. A single
+  worked example is not sufficient evidence a model passes this premise either way — one
+  Llama-3 example looked like a failure and was not representative of its 45-fact
+  aggregate rate (Section 2.2).
+- **No deployed detector.** This note establishes a measurable phenomenon (fragile even
+  on the axis it was found on), not a calibrated, cross-domain threshold ready to gate
+  real generations.
 - **Prior art.** Zhao et al. (2024) already show conflict-presence is probeable at
-  intermediate layers; this note's distinct contribution is the late-layer
-  resistance-vs-compliance split (Section 2.4) and the negative result on per-fact rigidity
-  (Section 2.3), not the base claim that conflict leaves a residual-stream trace.
+  intermediate layers; this note's distinct contributions are the late-layer
+  resistance-vs-compliance split (Section 2.4), the negative result on per-fact rigidity
+  (Section 2.3), and the negative result on realistic-document generalization
+  (Section 2.6) — not the base claim that conflict leaves a residual-stream trace.
 
 ## 5. Reproduce
 
@@ -150,8 +223,10 @@ python -m nous.verifier_in_context_conflict         # 2.2, Qwen single-relation 
 python -m nous.verifier_multi_relation_robustness   # 2.2, 3-relation x 3-seed Qwen sweep
 python -m nous.rigidity_hypothesis_test             # 2.3, per-fact confidence vs decoherence
 python -m nous.verifier_cross_model_phi3            # 2.2, Phi-3 cross-model replication
+python -m nous.verifier_cross_model_llama3          # 2.2, Llama-3 cross-model replication (HF_TOKEN required)
 python -m nous.verifier_compliance_split_phi3       # 2.4, stubborn vs compliant split
 python -m nous.replicate_zhao_conflict_probe        # 2.5, trained-probe reconciliation
+python -m nous.verifier_scaled_realistic            # 2.6, 120-fact realistic-document sweep
 ```
 
 ## References
