@@ -1,5 +1,7 @@
 # Late-Layer Geometric Resistance Under In-Context Knowledge Conflict
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21230701.svg)](https://doi.org/10.5281/zenodo.21230701)
+
 Workshop-note draft. Read [paper.md](paper.md) (or build `paper.pdf`, see below) for
 the actual writeup — this README is just pointers.
 
@@ -51,6 +53,13 @@ an `HF_TOKEN` with an accepted license for `meta-llama/Llama-3.2-3B-Instruct`.
 ```bash
 pip install -r requirements.txt
 python -m nous.verifier_real_llm_test
+```
+
+## Citation
+
+```
+Polu, H. K. (2026). Late-Layer Geometric Resistance Under In-Context Knowledge
+Conflict. Zenodo. https://doi.org/10.5281/zenodo.21230701
 ```
 
 ## License
